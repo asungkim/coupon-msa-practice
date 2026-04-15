@@ -71,5 +71,6 @@ subprojects {
 
     tasks.named('test') {
         useJUnitPlatform()
+        environment 'LOAD_TEST', System.getenv('LOAD_TEST') ?: ''
     }
 }
