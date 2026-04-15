@@ -2,14 +2,14 @@ package com.example.coupon.domain.coupon.service;
 
 import com.example.coupon.domain.coupon.dto.CouponIssueResponse;
 import com.example.coupon.domain.coupon.event.CouponIssuedEvent;
-import com.example.coupon.domain.coupon.entity.Coupon;
 import com.example.coupon.domain.coupon.entity.CouponIssue;
+import com.example.coupon.domain.coupon.entity.Coupon;
 import com.example.coupon.domain.coupon.enums.IssueStatus;
 import com.example.coupon.domain.coupon.exception.CouponAlreadyIssuedException;
-import com.example.coupon.domain.coupon.exception.CouponNotAvailableException;
 import com.example.coupon.domain.coupon.exception.CouponNotFoundException;
 import com.example.coupon.domain.coupon.repository.CouponIssueRepository;
 import com.example.coupon.domain.coupon.repository.CouponRepository;
+import com.example.coupon.domain.coupon.service.strategy.CouponIssueStrategy;
 import com.example.coupon.domain.user.exception.UserNotFoundException;
 import com.example.coupon.domain.user.repository.UserRepository;
 import com.example.coupon.domain.user.service.PointService;
@@ -31,6 +31,7 @@ public class CouponService {
     private final UserRepository userRepository;
     private final PointService pointService;
     private final ApplicationEventPublisher eventPublisher;
+    private final CouponIssueStrategy couponIssueStrategy;
 
     @Transactional
     public Coupon createCoupon(String name, String description, Integer pointCost,
@@ -47,19 +48,12 @@ public class CouponService {
             throw new CouponAlreadyIssuedException(userId, couponId);
         }
 
-        var user = userRepository.findById(userId)
+        userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
-        var coupon = couponRepository.findById(couponId)
-                .orElseThrow(() -> new CouponNotFoundException(couponId));
-
-        if (!coupon.isAvailable()) {
-            throw new CouponNotAvailableException(couponId, "Coupon is not available or expired");
-        }
+        var coupon = couponIssueStrategy.decreaseQuantity(couponId);
 
         pointService.decreasePoints(userId, (long) coupon.getPointCost());
-
-        coupon.decreaseQuantity();
 
         var issue = couponIssueRepository.save(
                 new CouponIssue(userId, couponId, IssueStatus.ISSUED));

@@ -2,6 +2,7 @@ package com.example.coupon.global.exception;
 
 import com.example.coupon.domain.coupon.exception.*;
 import com.example.coupon.domain.user.exception.*;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -40,6 +41,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InsufficientPointsException.class)
     public ResponseEntity<Map<String, Object>> handleInsufficientPoints(InsufficientPointsException e) {
         return buildResponse(HttpStatus.BAD_REQUEST, "Insufficient points");
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException e) {
+        return buildResponse(HttpStatus.CONFLICT, "Coupon already issued to this user");
     }
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {

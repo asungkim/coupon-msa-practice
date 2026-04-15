@@ -2,6 +2,7 @@ package com.example.coupon.domain.coupon.service;
 
 import com.example.coupon.domain.coupon.dto.CouponIssueResponse;
 import com.example.coupon.domain.coupon.event.CouponIssuedEvent;
+import com.example.coupon.domain.coupon.service.strategy.CouponIssueStrategy;
 import com.example.coupon.domain.coupon.entity.Coupon;
 import com.example.coupon.domain.coupon.entity.CouponIssue;
 import com.example.coupon.domain.coupon.enums.IssueStatus;
@@ -35,6 +36,7 @@ class CouponServiceTest {
     private UserRepository userRepository;
     private PointService pointService;
     private ApplicationEventPublisher eventPublisher;
+    private CouponIssueStrategy couponIssueStrategy;
     private CouponService couponService;
 
     @BeforeEach
@@ -44,8 +46,9 @@ class CouponServiceTest {
         userRepository = mock(UserRepository.class);
         pointService = mock(PointService.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
+        couponIssueStrategy = mock(CouponIssueStrategy.class);
         couponService = new CouponService(couponRepository, couponIssueRepository,
-                userRepository, pointService, eventPublisher);
+                userRepository, pointService, eventPublisher, couponIssueStrategy);
     }
 
     private Coupon createAvailableCoupon() {
@@ -85,13 +88,13 @@ class CouponServiceTest {
 
         when(couponIssueRepository.existsByUserIdAndCouponId(1L, 1L)).thenReturn(false);
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(couponRepository.findById(1L)).thenReturn(Optional.of(coupon));
+        when(couponIssueStrategy.decreaseQuantity(1L)).thenReturn(coupon);
         when(couponIssueRepository.save(any(CouponIssue.class))).thenReturn(savedIssue);
 
         CouponIssueResponse result = couponService.issueCoupon(1L, 1L);
 
         assertThat(result.status()).isEqualTo("ISSUED");
-        assertThat(coupon.getRemainingQuantity()).isEqualTo(199);
+        verify(couponIssueStrategy).decreaseQuantity(1L);
         verify(pointService).decreasePoints(1L, 100L);
         verify(eventPublisher).publishEvent(any(CouponIssuedEvent.class));
     }
@@ -118,25 +121,24 @@ class CouponServiceTest {
     }
 
     @Test
-    @DisplayName("쿠폰 미존재 시 CouponNotFoundException 발생")
+    @DisplayName("쿠폰 미존재 시 CouponNotFoundException 발생 (strategy에서)")
     void issueCoupon_couponNotFound() {
         when(couponIssueRepository.existsByUserIdAndCouponId(1L, 1L)).thenReturn(false);
         when(userRepository.findById(1L)).thenReturn(Optional.of(createUserWithPoints(10000L)));
-        when(couponRepository.findById(1L)).thenReturn(Optional.empty());
+        when(couponIssueStrategy.decreaseQuantity(1L))
+                .thenThrow(new CouponNotFoundException(1L));
 
         assertThatThrownBy(() -> couponService.issueCoupon(1L, 1L))
                 .isInstanceOf(CouponNotFoundException.class);
     }
 
     @Test
-    @DisplayName("발급 불가(재고 0) 시 CouponNotAvailableException 발생")
+    @DisplayName("발급 불가(재고 0) 시 CouponNotAvailableException 발생 (strategy에서)")
     void issueCoupon_notAvailable() {
-        Coupon coupon = new Coupon("쿠폰", "설명", 100, 0,
-                LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(30));
-
         when(couponIssueRepository.existsByUserIdAndCouponId(1L, 1L)).thenReturn(false);
         when(userRepository.findById(1L)).thenReturn(Optional.of(createUserWithPoints(10000L)));
-        when(couponRepository.findById(1L)).thenReturn(Optional.of(coupon));
+        when(couponIssueStrategy.decreaseQuantity(1L))
+                .thenThrow(new CouponNotAvailableException(1L, "not available"));
 
         assertThatThrownBy(() -> couponService.issueCoupon(1L, 1L))
                 .isInstanceOf(CouponNotAvailableException.class);
@@ -149,7 +151,7 @@ class CouponServiceTest {
 
         when(couponIssueRepository.existsByUserIdAndCouponId(1L, 1L)).thenReturn(false);
         when(userRepository.findById(1L)).thenReturn(Optional.of(createUserWithPoints(10000L)));
-        when(couponRepository.findById(1L)).thenReturn(Optional.of(coupon));
+        when(couponIssueStrategy.decreaseQuantity(1L)).thenReturn(coupon);
         doThrow(new com.example.coupon.domain.user.exception.InsufficientPointsException(1L, 100L, 50L))
                 .when(pointService).decreasePoints(anyLong(), anyLong());
 

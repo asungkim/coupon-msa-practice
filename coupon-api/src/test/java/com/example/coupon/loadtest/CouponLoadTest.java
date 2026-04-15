@@ -42,8 +42,14 @@ class CouponLoadTest {
 
     private final WebClient client = WebClient.create(baseUrl);
 
-    private final int COUPON_QUANTITY = 200;
-    private final int CONCURRENT_USERS = 300;
+    private final int COUPON_QUANTITY = parseEnvOrDefault("LOAD_TEST_QUANTITY", 200);
+    private final int CONCURRENT_USERS = parseEnvOrDefault("LOAD_TEST_USERS", 300);
+
+    private static int parseEnvOrDefault(String key, int defaultValue) {
+        String val = System.getenv(key);
+        if (val == null || val.isBlank()) return defaultValue;
+        return Integer.parseInt(val);
+    }
 
     private static final Path RESULT_FILE = Path.of(System.getProperty("user.dir"))
             .getParent()

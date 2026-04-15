@@ -20,6 +20,10 @@ spring:
       enabled: true
       path: /h2-console
 
+coupon:
+  issue:
+    strategy: atomic  # pessimistic | atomic
+
 notification:
   service:
     url: http://localhost:8090

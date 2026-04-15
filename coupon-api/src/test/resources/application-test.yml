@@ -8,3 +8,14 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: true
+
+coupon:
+  issue:
+    strategy: atomic
+
+notification:
+  service:
+    url: http://localhost:8090
+    timeout-seconds: 5
+  client:
+    mode: sync
