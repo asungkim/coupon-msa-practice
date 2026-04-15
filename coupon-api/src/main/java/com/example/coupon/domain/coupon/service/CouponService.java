@@ -1,7 +1,7 @@
 package com.example.coupon.domain.coupon.service;
 
-import com.example.coupon.domain.coupon.client.PushNotificationClient;
 import com.example.coupon.domain.coupon.dto.CouponIssueResponse;
+import com.example.coupon.domain.coupon.event.CouponIssuedEvent;
 import com.example.coupon.domain.coupon.entity.Coupon;
 import com.example.coupon.domain.coupon.entity.CouponIssue;
 import com.example.coupon.domain.coupon.enums.IssueStatus;
@@ -15,6 +15,7 @@ import com.example.coupon.domain.user.repository.UserRepository;
 import com.example.coupon.domain.user.service.PointService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +30,7 @@ public class CouponService {
     private final CouponIssueRepository couponIssueRepository;
     private final UserRepository userRepository;
     private final PointService pointService;
-    private final PushNotificationClient pushNotificationClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public Coupon createCoupon(String name, String description, Integer pointCost,
@@ -63,8 +64,7 @@ public class CouponService {
         var issue = couponIssueRepository.save(
                 new CouponIssue(userId, couponId, IssueStatus.ISSUED));
 
-        pushNotificationClient.sendCouponIssuedNotification(
-                userId, coupon.getName(), coupon.getId());
+        eventPublisher.publishEvent(new CouponIssuedEvent(userId, coupon.getName(), coupon.getId()));
 
         log.info("Coupon {} issued to user {} successfully", couponId, userId);
 

@@ -1,7 +1,7 @@
 package com.example.coupon.domain.coupon.service;
 
-import com.example.coupon.domain.coupon.client.PushNotificationClient;
 import com.example.coupon.domain.coupon.dto.CouponIssueResponse;
+import com.example.coupon.domain.coupon.event.CouponIssuedEvent;
 import com.example.coupon.domain.coupon.entity.Coupon;
 import com.example.coupon.domain.coupon.entity.CouponIssue;
 import com.example.coupon.domain.coupon.enums.IssueStatus;
@@ -17,6 +17,7 @@ import com.example.coupon.domain.user.service.PointService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -33,7 +34,7 @@ class CouponServiceTest {
     private CouponIssueRepository couponIssueRepository;
     private UserRepository userRepository;
     private PointService pointService;
-    private PushNotificationClient pushNotificationClient;
+    private ApplicationEventPublisher eventPublisher;
     private CouponService couponService;
 
     @BeforeEach
@@ -42,9 +43,9 @@ class CouponServiceTest {
         couponIssueRepository = mock(CouponIssueRepository.class);
         userRepository = mock(UserRepository.class);
         pointService = mock(PointService.class);
-        pushNotificationClient = mock(PushNotificationClient.class);
+        eventPublisher = mock(ApplicationEventPublisher.class);
         couponService = new CouponService(couponRepository, couponIssueRepository,
-                userRepository, pointService, pushNotificationClient);
+                userRepository, pointService, eventPublisher);
     }
 
     private Coupon createAvailableCoupon() {
@@ -92,7 +93,7 @@ class CouponServiceTest {
         assertThat(result.status()).isEqualTo("ISSUED");
         assertThat(coupon.getRemainingQuantity()).isEqualTo(199);
         verify(pointService).decreasePoints(1L, 100L);
-        verify(pushNotificationClient).sendCouponIssuedNotification(eq(1L), eq("대박쿠폰"), any());
+        verify(eventPublisher).publishEvent(any(CouponIssuedEvent.class));
     }
 
     // === issueCoupon 실패 케이스 ===
