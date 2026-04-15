@@ -70,4 +70,15 @@ public class CouponService {
 
         return CouponIssueResponse.from(issue);
     }
+
+    @Transactional(readOnly = true)
+    public Coupon getCoupon(Long couponId) {
+        return couponRepository.findById(couponId)
+                .orElseThrow(() -> new CouponNotFoundException(couponId));
+    }
+
+    @Transactional(readOnly = true)
+    public long getIssueCount(Long couponId) {
+        return couponIssueRepository.countByCouponId(couponId);
+    }
 }

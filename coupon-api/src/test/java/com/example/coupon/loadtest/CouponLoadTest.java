@@ -9,7 +9,12 @@ import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +24,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * 서버 기동 후 수동 실행하는 부하 테스트.
  * h2Server → notificationMock → couponApi1 순서로 기동 후 실행.
+ *
+ * 실행: LOAD_TEST=true ./gradlew :coupon-api:test --tests "*.CouponLoadTest" --rerun
+ * 라벨: LOAD_TEST_LABEL 환경변수로 결과 파일에 단계명 기록 (예: "Phase 1", "Step 1 동기")
  */
 @EnabledIfEnvironmentVariable(named = "LOAD_TEST", matches = "true")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -28,10 +36,18 @@ class CouponLoadTest {
             ? System.getenv("BASE_URL")
             : "http://localhost:8080";
 
+    private final String testLabel = System.getenv("LOAD_TEST_LABEL") != null
+            ? System.getenv("LOAD_TEST_LABEL")
+            : "unknown";
+
     private final WebClient client = WebClient.create(baseUrl);
 
     private final int COUPON_QUANTITY = 200;
     private final int CONCURRENT_USERS = 300;
+
+    private static final Path RESULT_FILE = Path.of(System.getProperty("user.dir"))
+            .getParent()
+            .resolve("docs/history/load_test_results.md");
 
     private ClientResponse post(String path, Object body) {
         return client
@@ -48,16 +64,27 @@ class CouponLoadTest {
         return (Map<String, Object>) resp.bodyToMono(Map.class).block();
     }
 
-    private ClientResponse get(String path) {
-        return client
+    private void depositPoints(Long userId, Long amount) {
+        post("/api/users/" + userId + "/points", Map.of("amount", amount));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> get(String path) {
+        return (Map<String, Object>) client
                 .get()
                 .uri(path)
-                .exchange()
+                .retrieve()
+                .bodyToMono(Map.class)
                 .block();
     }
 
-    private void depositPoints(Long userId, Long amount) {
-        post("/api/users/" + userId + "/points", Map.of("amount", amount));
+    private Long getLong(String path) {
+        return client
+                .get()
+                .uri(path)
+                .retrieve()
+                .bodyToMono(Long.class)
+                .block();
     }
 
     @Test
@@ -131,7 +158,7 @@ class CouponLoadTest {
             executor.shutdownNow();
         }
 
-        // 7. 결과 집계
+        // 7. HTTP 결과 집계
         double elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000.0;
         for (var future : futures) {
             try {
@@ -144,16 +171,26 @@ class CouponLoadTest {
                     } else {
                         errorCount.incrementAndGet();
                     }
+                } else {
+                    errorCount.incrementAndGet();
                 }
             } catch (Exception e) {
                 errorCount.incrementAndGet();
             }
         }
 
-        // 8. 결과 출력
+        // 8. DB 정합성 검증 (조회 API)
+        var couponState = get("/api/coupons/" + couponId);
+        int remainingQuantity = ((Number) couponState.get("remainingQuantity")).intValue();
+        int totalQuantity = ((Number) couponState.get("totalQuantity")).intValue();
+        long issueCount = getLong("/api/coupons/" + couponId + "/issues/count");
+        int consumed = totalQuantity - remainingQuantity;
+        boolean consistencyMatch = (consumed == issueCount);
+
+        // 9. 콘솔 출력
         System.out.println();
         System.out.println("=".repeat(55));
-        System.out.println("  부하테스트 결과 (Phase 1 — 동시성 미해결)");
+        System.out.printf("  부하테스트 결과 [%s]%n", testLabel);
         System.out.println("=".repeat(55));
         System.out.println("대상 서버: " + baseUrl);
         System.out.println("쿠폰 수량: " + COUPON_QUANTITY);
@@ -164,34 +201,43 @@ class CouponLoadTest {
         System.out.printf("에러/타임아웃: %d%n", errorCount.get());
         System.out.printf("총 소요시간: %.1f초%n", elapsedSeconds);
         System.out.println("-".repeat(55));
-
-        // 9. 정합성 검증
-        boolean hasIssue = false;
-
-        if (successCount.get() > COUPON_QUANTITY) {
-            System.out.printf("[FAIL] 초과 발급! 성공(%d) > 쿠폰수량(%d)%n",
-                    successCount.get(), COUPON_QUANTITY);
-            hasIssue = true;
-        } else if (successCount.get() == COUPON_QUANTITY) {
-            System.out.printf("[PASS] 발급 수량 정확: %d == %d%n",
-                    successCount.get(), COUPON_QUANTITY);
-        } else {
-            System.out.printf("[WARN] 발급 부족: 성공(%d) < 쿠폰수량(%d) — 커넥션 고갈 등으로 일부 실패%n",
-                    successCount.get(), COUPON_QUANTITY);
-            hasIssue = true;
-        }
-
-        if (elapsedSeconds > 10.0) {
-            System.out.printf("[FAIL] 소요시간 초과: %.1f초 > 10초 — 커넥션 고갈 의심%n", elapsedSeconds);
-            hasIssue = true;
-        }
-
+        System.out.printf("remainingQuantity: %d%n", remainingQuantity);
+        System.out.printf("실제 발급 건수(DB): %d%n", issueCount);
+        System.out.printf("소비량(total-remaining): %d%n", consumed);
+        System.out.printf("정합성(소비량==발급건수): %s%n", consistencyMatch ? "PASS" : "FAIL");
         System.out.println("=".repeat(55));
-        if (hasIssue) {
-            System.out.println(">>> Phase 1 문제 확인됨 — Phase 2~3에서 해결 필요");
-        } else {
-            System.out.println(">>> 정합성 문제 없음");
+
+        // 10. 결과 파일 저장
+        saveResult(elapsedSeconds, successCount.get(), failCount.get(), errorCount.get(),
+                remainingQuantity, issueCount, consumed, consistencyMatch);
+    }
+
+    private void saveResult(double elapsed, int success, int fail, int error,
+                            int remaining, long issueCount, int consumed,
+                            boolean consistency) throws IOException {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+
+        var sb = new StringBuilder();
+        sb.append("\n## [%s] %s\n\n".formatted(timestamp, testLabel));
+        sb.append("| 항목 | 값 |\n");
+        sb.append("|------|-----|\n");
+        sb.append("| 쿠폰 수량 | %d |\n".formatted(COUPON_QUANTITY));
+        sb.append("| 동시 요청 수 | %d |\n".formatted(CONCURRENT_USERS));
+        sb.append("| HTTP 200 성공 | %d |\n".formatted(success));
+        sb.append("| HTTP 4xx 실패 | %d |\n".formatted(fail));
+        sb.append("| 에러/타임아웃 | %d |\n".formatted(error));
+        sb.append("| 총 소요시간 | %.1f초 |\n".formatted(elapsed));
+        sb.append("| remainingQuantity | %d |\n".formatted(remaining));
+        sb.append("| 실제 발급 건수(DB) | %d |\n".formatted(issueCount));
+        sb.append("| 소비량(total-remaining) | %d |\n".formatted(consumed));
+        sb.append("| 정합성(소비량==발급건수) | %s |\n".formatted(consistency ? "PASS" : "FAIL"));
+
+        if (!Files.exists(RESULT_FILE)) {
+            Files.createDirectories(RESULT_FILE.getParent());
+            Files.writeString(RESULT_FILE, "# 부하 테스트 결과 기록\n\n> 각 단계별 동일 조건(300명/200쿠폰)으로 실행한 결과를 누적 기록한다.\n");
         }
-        System.out.println("=".repeat(55));
+        Files.writeString(RESULT_FILE, sb.toString(), StandardOpenOption.APPEND);
+
+        System.out.println(">>> 결과 저장: " + RESULT_FILE);
     }
 }
