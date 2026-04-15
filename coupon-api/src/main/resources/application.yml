@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: coupon-api
+  datasource:
+    url: jdbc:h2:tcp://localhost:9092/mem:coupon
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    hikari:
+      maximum-pool-size: 10  # 변경 금지
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+notification:
+  service:
+    url: http://localhost:8090
+    timeout-seconds: 5

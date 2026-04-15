@@ -1,0 +1,7 @@
+dependencies {
+}
+
+bootRun {
+    group = 'servers'
+    description = 'Start notification-mock-api (port 8090)'
+}

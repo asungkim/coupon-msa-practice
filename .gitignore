@@ -1,0 +1,7 @@
+.claude
+.idea
+.vscode
+.DS_Store
+.gradle
+build/
+*/build/

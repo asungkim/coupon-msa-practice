@@ -1,0 +1,75 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.13' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
+}
+
+allprojects {
+    group = 'com.example.coupon'
+    version = '0.0.1-SNAPSHOT'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+// H2 TCP 서버 구동용
+configurations {
+    h2Server
+}
+
+dependencies {
+    h2Server 'com.h2database:h2:2.2.224'
+}
+
+// ============================================
+// servers task 그룹
+// ============================================
+tasks.register('h2Server', JavaExec) {
+    group = 'servers'
+    description = 'Start H2 TCP Server (port 9092) and Web Console (port 9093)'
+    classpath = configurations.h2Server
+    mainClass = 'org.h2.tools.Server'
+    args = ['-tcp', '-tcpPort', '9092', '-tcpAllowOthers',
+            '-web', '-webPort', '9093', '-webAllowOthers',
+            '-ifNotExists']
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'io.spring.dependency-management'
+
+    java {
+        sourceCompatibility = '17'
+    }
+
+    configurations {
+        compileOnly {
+            extendsFrom annotationProcessor
+        }
+    }
+
+    dependencies {
+        // Spring Boot
+        implementation 'org.springframework.boot:spring-boot-starter-web'
+        implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+        implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+        // H2 Database
+        runtimeOnly 'com.h2database:h2'
+
+        // Lombok
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+
+        // Test
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testCompileOnly 'org.projectlombok:lombok'
+        testAnnotationProcessor 'org.projectlombok:lombok'
+    }
+
+    tasks.named('test') {
+        useJUnitPlatform()
+    }
+}

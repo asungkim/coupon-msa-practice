@@ -1,0 +1,20 @@
+dependencies {
+    // WebClient (PushNotificationClient용)
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+}
+
+// ============================================
+// IntelliJ Gradle 패널에서 더블클릭으로 실행
+// ============================================
+bootRun {
+    group = 'servers'
+    description = 'Start coupon-api (port 8080)'
+}
+
+tasks.register('bootRun2', org.springframework.boot.gradle.tasks.run.BootRun) {
+    group = 'servers'
+    description = 'Start coupon-api (port 8081)'
+    mainClass = 'com.example.coupon.CouponApiApplication'
+    classpath = sourceSets.main.runtimeClasspath
+    args = ['--server.port=8081']
+}
