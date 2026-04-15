@@ -40,7 +40,14 @@ class CouponLoadTest {
             ? System.getenv("LOAD_TEST_LABEL")
             : "unknown";
 
-    private final WebClient client = WebClient.create(baseUrl);
+    private final WebClient client = WebClient.builder()
+            .baseUrl(baseUrl)
+            .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector(
+                    reactor.netty.http.client.HttpClient.create()
+                            .option(io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000)
+                            .responseTimeout(java.time.Duration.ofSeconds(30))
+            ))
+            .build();
 
     private final int COUPON_QUANTITY = parseEnvOrDefault("LOAD_TEST_QUANTITY", 200);
     private final int CONCURRENT_USERS = parseEnvOrDefault("LOAD_TEST_USERS", 300);
@@ -156,10 +163,11 @@ class CouponLoadTest {
         // 5. 동시 출발
         latch.countDown();
 
-        // 6. 타임아웃 10초
+        // 6. 타임아웃 (유저 수에 비례, 최소 10초)
+        int timeoutSeconds = Math.max(10, CONCURRENT_USERS / 30);
         executor.shutdown();
         try {
-            executor.awaitTermination(10, TimeUnit.SECONDS);
+            executor.awaitTermination(timeoutSeconds, TimeUnit.SECONDS);
         } catch (InterruptedException ignored) {
             executor.shutdownNow();
         }
