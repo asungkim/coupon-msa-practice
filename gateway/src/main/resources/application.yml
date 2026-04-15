@@ -1,0 +1,20 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: gateway
+  cloud:
+    discovery:
+      client:
+        simple:
+          instances:
+            coupon-api:
+              - uri: http://localhost:8080
+              - uri: http://localhost:8081
+    gateway:
+      routes:
+        - id: coupon-service
+          uri: lb://coupon-api
+          predicates:
+            - Path=/api/**

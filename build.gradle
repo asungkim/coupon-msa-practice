@@ -36,6 +36,8 @@ tasks.register('h2Server', JavaExec) {
 }
 
 subprojects {
+    if (project.name == 'gateway') return
+
     apply plugin: 'java'
     apply plugin: 'org.springframework.boot'
     apply plugin: 'io.spring.dependency-management'
@@ -72,6 +74,7 @@ subprojects {
     tasks.named('test') {
         useJUnitPlatform()
         environment 'LOAD_TEST', System.getenv('LOAD_TEST') ?: ''
+        environment 'GATEWAY_LOAD_TEST', System.getenv('GATEWAY_LOAD_TEST') ?: ''
         environment 'LOAD_TEST_LABEL', System.getenv('LOAD_TEST_LABEL') ?: ''
         environment 'LOAD_TEST_USERS', System.getenv('LOAD_TEST_USERS') ?: ''
         environment 'LOAD_TEST_QUANTITY', System.getenv('LOAD_TEST_QUANTITY') ?: ''

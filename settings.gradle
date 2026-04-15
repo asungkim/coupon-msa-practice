@@ -2,3 +2,4 @@ rootProject.name = 'coupon-msa'
 
 include 'coupon-api'
 include 'notification-mock-api'
+include 'gateway'
