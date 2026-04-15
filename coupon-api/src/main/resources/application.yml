@@ -25,4 +25,4 @@ notification:
     url: http://localhost:8090
     timeout-seconds: 5
   client:
-    mode: sync  # sync | async
+    mode: async  # sync | async
