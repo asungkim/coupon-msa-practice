@@ -5,40 +5,33 @@ import com.example.coupon.domain.coupon.entity.Coupon;
 import com.example.coupon.domain.coupon.exception.CouponAlreadyIssuedException;
 import com.example.coupon.domain.coupon.exception.CouponNotAvailableException;
 import com.example.coupon.domain.coupon.exception.CouponNotFoundException;
-import com.example.coupon.domain.coupon.exception.CouponOutOfStockException;
 import com.example.coupon.domain.coupon.service.CouponService;
 import com.example.coupon.domain.user.exception.InsufficientPointsException;
 import com.example.coupon.domain.user.exception.UserNotFoundException;
-import com.example.coupon.global.exception.GlobalExceptionHandler;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@WebMvcTest(CouponController.class)
 class CouponControllerTest {
 
+    @Autowired
     private MockMvc mockMvc;
-    private CouponService couponService;
 
-    @BeforeEach
-    void setUp() {
-        couponService = mock(CouponService.class);
-        mockMvc = MockMvcBuilders
-                .standaloneSetup(new CouponController(couponService))
-                .setControllerAdvice(new GlobalExceptionHandler())
-                .build();
-    }
+    @MockitoBean
+    private CouponService couponService;
 
     // === 쿠폰 생성 ===
 

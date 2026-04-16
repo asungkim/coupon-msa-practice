@@ -3,35 +3,29 @@ package com.example.coupon.domain.user.controller;
 import com.example.coupon.domain.user.entity.User;
 import com.example.coupon.domain.user.exception.UserNotFoundException;
 import com.example.coupon.domain.user.service.UserService;
-import com.example.coupon.global.exception.GlobalExceptionHandler;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@WebMvcTest(UserController.class)
 class UserControllerTest {
 
+    @Autowired
     private MockMvc mockMvc;
-    private UserService userService;
 
-    @BeforeEach
-    void setUp() {
-        userService = mock(UserService.class);
-        mockMvc = MockMvcBuilders
-                .standaloneSetup(new UserController(userService))
-                .setControllerAdvice(new GlobalExceptionHandler())
-                .build();
-    }
+    @MockitoBean
+    private UserService userService;
 
     @Test
     @DisplayName("POST /api/users — 유저 생성 성공")
