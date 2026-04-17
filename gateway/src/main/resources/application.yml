@@ -10,8 +10,8 @@ spring:
         simple:
           instances:
             coupon-api:
-              - uri: http://localhost:8080
-              - uri: http://localhost:8081
+              - uri: ${COUPON_API_1_URL:http://localhost:8080}
+              - uri: ${COUPON_API_2_URL:http://localhost:8081}
     gateway:
       routes:
         - id: coupon-service

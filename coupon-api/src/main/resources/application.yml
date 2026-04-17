@@ -5,20 +5,32 @@ spring:
   application:
     name: coupon-api
   datasource:
-    url: jdbc:h2:tcp://localhost:9092/mem:coupon
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:mysql://localhost:3306/coupon?useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: coupon
+    password: coupon
     hikari:
       maximum-pool-size: 10  # 변경 금지
   jpa:
     hibernate:
       ddl-auto: create-drop
     show-sql: true
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
 
 coupon:
   issue:

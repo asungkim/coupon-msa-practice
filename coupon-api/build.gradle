@@ -1,6 +1,12 @@
 dependencies {
     // WebClient (PushNotificationClient용)
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    // Actuator + Micrometer (메트릭 노출)
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // MySQL (운영)
+    runtimeOnly 'com.mysql:mysql-connector-j'
 }
 
 // ============================================

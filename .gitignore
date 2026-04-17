@@ -5,3 +5,7 @@
 .gradle
 build/
 */build/
+bin/
+*/bin/
+k6/metrics/
+k6/last-run.md

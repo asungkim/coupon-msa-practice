@@ -1,0 +1,104 @@
+# Docker Compose 실행:
+#   docker compose up -d --build
+# 종료:
+#   docker compose down
+#
+# 리소스 제한: 모든 서비스 t2.small (1 vCPU / 2g), notification-mock만 t2.micro (1 vCPU / 1g)
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: coupon-mysql
+    environment:
+      MYSQL_DATABASE: coupon
+      MYSQL_USER: coupon
+      MYSQL_PASSWORD: coupon
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2g
+
+  notification-mock:
+    build:
+      context: .
+      dockerfile: notification-mock-api/Dockerfile
+    container_name: coupon-notification-mock
+    ports:
+      - "8090:8090"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1g
+
+  coupon-api-1:
+    build:
+      context: .
+      dockerfile: coupon-api/Dockerfile
+    container_name: coupon-api-1
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/coupon?useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8
+      NOTIFICATION_SERVICE_URL: http://notification-mock:8090
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      notification-mock:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2g
+
+  coupon-api-2:
+    build:
+      context: .
+      dockerfile: coupon-api/Dockerfile
+    container_name: coupon-api-2
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/coupon?useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8
+      NOTIFICATION_SERVICE_URL: http://notification-mock:8090
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      notification-mock:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2g
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    container_name: coupon-gateway
+    environment:
+      COUPON_API_1_URL: http://coupon-api-1:8080
+      COUPON_API_2_URL: http://coupon-api-2:8081
+    ports:
+      - "9000:9000"
+    depends_on:
+      - coupon-api-1
+      - coupon-api-2
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2g
